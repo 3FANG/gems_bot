@@ -7,16 +7,21 @@ from bot.config import load_environment
 from bot.lexicon import RU_LEXICON
 from bot.keyboards import admin_panel_keyboard, games_keyboard, edit_goods, goods_keyboard, cancel_button, edit_promos, promo_keyboard
 from bot.database import Database
-from bot.services import get_goods_description, get_promos_description
+from bot.services import get_goods_description, get_promos_description, upload_photos
 from bot.states import AdminState
 
 ENV = load_environment()
+
+async def upload_photo_command(message: Message, db: Database):
+    is_upload = await upload_photos(db, message)
+    await message.answer(RU_LEXICON['is_upload'])
 
 async def admin_panel_command(message: Message):
     await message.answer(RU_LEXICON['admin_panel'], reply_markup=admin_panel_keyboard())
 
 async def admin_panel_callback(callback: CallbackQuery, state: FSMContext):
-    await state.finish()
+    if state:
+        await state.finish()
     await callback.message.edit_text(RU_LEXICON['admin_panel'], reply_markup=admin_panel_keyboard())
     await callback.answer()
 
@@ -88,6 +93,7 @@ async def delete_promo(callback: CallbackQuery, db: Database):
     await callback.answer(text=RU_LEXICON['success_delete_promo'])
 
 def register_admin_handlers(dp: Dispatcher):
+    dp.register_message_handler(upload_photo_command, IDFilter(ENV('ADMIN_ID')), commands='upload_photo')
     dp.register_message_handler(admin_panel_command, IDFilter(ENV('ADMIN_ID')), commands='admin')
     dp.register_callback_query_handler(admin_panel_callback, text='admin', state='*')
     dp.register_callback_query_handler(choice_game_process, text='games')

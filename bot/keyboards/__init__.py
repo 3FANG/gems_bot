@@ -13,5 +13,11 @@ from .inline import (
     edit_referral_keyboard,
     top_up_balance,
     cancel_top_up_balance,
-    invoice_buttons
+    invoice_buttons,
+    cancel_buy_good_button,
+    get_code_button,
+    success_donate_button,
+    pagination_orders_keyboard,
+    order_details_keyboard,
+    cancel_edit_order
 )

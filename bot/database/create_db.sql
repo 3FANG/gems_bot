@@ -21,12 +21,14 @@ CREATE TABLE IF NOT EXISTS Goods(
     available BOOLEAN DEFAULT TRUE
 );
 
--- Переделать
 CREATE TABLE IF NOT EXISTS Orders(
     id SERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES Users(id),
     good_id INT REFERENCES Goods(id),
-    payed BOOLEAN DEFAULT FALSE
+    mail TEXT,
+    registed timestamptz DEFAULT now(),
+    status TEXT DEFAULT 'wait',
+    code INT
 );
 
 CREATE TABLE IF NOT EXISTS Promos(
@@ -49,3 +51,10 @@ CREATE TABLE IF NOT EXISTS Invoices(
     date_of_payment timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS Photos(
+    id SERIAL PRIMARY KEY,
+    photo_unique_id TEXT,
+    photo_id TEXT,
+    file_path TEXT,
+    game_id INT REFERENCES Games(id)
+);

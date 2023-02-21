@@ -10,6 +10,7 @@ from bot.config import load_config, Config
 from bot.handlers import register_all_handlers
 from bot.database import create_database
 from bot.middleware import DBMidlleware, PaymentMidlleware
+from bot.services import upload_photos
 
 async def main():
     logger.info('Bot started...')

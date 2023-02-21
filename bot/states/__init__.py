@@ -6,3 +6,8 @@ class AdminState(StatesGroup):
 
 class UserState(StatesGroup):
     add_money = State()
+    send_mail = State()
+    send_code = State()
+    pagination = State()
+    edit_mail = State()
+    edit_code = State()
