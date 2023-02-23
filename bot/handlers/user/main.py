@@ -4,7 +4,7 @@ from aiogram import Dispatcher
 from aiogram.types import Message, CallbackQuery
 from aiogram.dispatcher import FSMContext
 
-from bot.keyboards import main_keyboard, free_gems_keyboard, another_games_keyboard, promo_back_button, goods_keyboard, edit_referral_keyboard, top_up_balance, cancel_top_up_balance, invoice_buttons, cancel_buy_good_button, get_code_button, success_donate_button, pagination_orders_keyboard, order_details_keyboard, cancel_edit_order
+from bot.keyboards import main_keyboard, free_gems_keyboard, another_games_keyboard, promo_back_button, goods_keyboard, edit_referral_keyboard, top_up_balance, cancel_top_up_balance, invoice_buttons, cancel_buy_good_button, get_code_button, success_donate_keyboard, pagination_orders_keyboard, order_details_keyboard, cancel_edit_order
 from bot.lexicon import RU_LEXICON
 from bot.database import Database
 from bot.services import get_link, check_valid_input, get_input_photo, check_valid_mail, date_formatting, check_valid_code, get_pages_amount, status_formatting
@@ -14,7 +14,9 @@ from bot.config import load_environment
 
 ENV = load_environment()
 
-async def start_command(message: Message, db: Database):
+async def start_command(message: Message, db: Database, state: FSMContext):
+    if state:
+        await state.finish()
     referral = message.get_args()
     await db.add_new_user(referral=int(referral) if referral else None)
     photo = await db.get_photo()
@@ -63,7 +65,7 @@ async def promo_command(message: Message, db: Database):
 async def my_orders_button(callback: CallbackQuery, db: Database):
     orders = await db.get_orders()
     if not orders:
-        await callback.answer(text=RU_LEXICON['no_orders']) #если нет заказов
+        await callback.answer(text=RU_LEXICON['no_orders'])
     else:
         await UserState.pagination.set()
         state = Dispatcher.get_current().current_state()
@@ -93,16 +95,19 @@ async def process_backward_button(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 async def order_button(callback: CallbackQuery, db: Database, state: FSMContext):
-    await UserState.pagination.set()
-    data = await state.get_data()
-    page = data['page']
-    order_id = int(callback.data.split(':')[1])
-    await state.update_data(last_order=order_id)
-    details_dict = await db.get_order_details(order_id)
-    raw_date, title, price, mail, code, raw_status = details_dict.values()
-    date = date_formatting(raw_date)
-    status = status_formatting(raw_status)
-    await callback.message.edit_text(text=RU_LEXICON['order_details'].format(date, title, price, mail, code, status), reply_markup=order_details_keyboard(order_id, page, raw_status))
+    try:
+        await UserState.pagination.set()
+        data = await state.get_data()
+        page = data['page']
+        order_id = int(callback.data.split(':')[1])
+        await state.update_data(last_order=order_id)
+        details_dict = await db.get_order_details(order_id)
+        raw_date, title, price, mail, code, raw_status = details_dict.values()
+        date = date_formatting(raw_date)
+        status = status_formatting(raw_status)
+        await callback.message.edit_text(text=RU_LEXICON['order_details'].format(date, title, price, mail, code, status), reply_markup=order_details_keyboard(order_id, page, raw_status))
+    except KeyError:
+        await callback.answer()
 
 async def change_mail_button(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split(':')[1]
@@ -121,8 +126,9 @@ async def change_mail_process(message: Message, db: Database, state: FSMContext)
         page = data['page']
         date = date_formatting(raw_date)
         status = status_formatting(raw_status)
+        client_username = message.from_user.username if message.from_user.username else message.from_user.id
         await message.answer(text=RU_LEXICON['order_details'].format(date, title, price, mail, code, status), reply_markup=order_details_keyboard(order_id, page, raw_status))
-        '''Cообщение админу'''
+        await message.bot.send_message(chat_id=ENV("ADMIN_ID"), text=RU_LEXICON['change_mail_push'].format(order_id, client_username, mail, title, price))
 
 async def change_code_button(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split(':')[1]
@@ -141,8 +147,9 @@ async def change_code_process(message: Message, db: Database, state: FSMContext)
         page = data['page']
         date = date_formatting(raw_date)
         status = status_formatting(raw_status)
+        client_username = message.from_user.username if message.from_user.username else message.from_user.id
         await message.answer(text=RU_LEXICON['order_details'].format(date, title, price, mail, code, status), reply_markup=order_details_keyboard(order_id, page, raw_status))
-        '''Сообщение админу'''
+        await message.bot.send_message(chat_id=ENV("ADMIN_ID"), text=RU_LEXICON['change_code_push'].format(order_id, client_username, mail, code, title, price), reply_markup=success_donate_keyboard(order_id))
 
 async def another_games_buttons(callback: CallbackQuery):
     await callback.message.delete()
@@ -192,31 +199,34 @@ async def send_mail_process(message: Message, db: Database, state: FSMContext):
         await message.bot.send_message(chat_id=ENV("ADMIN_ID"), text=RU_LEXICON['create_order_push'].format(date, order_id, '@' + client_username if not client_username.isdigit() else client_username, mail, good, price), reply_markup=get_code_button(order_id, message.from_user.id))
         await state.finish()
 
-async def send_code_process(callback: CallbackQuery):
+async def send_code_button(callback: CallbackQuery, db: Database):
     order_id, client_id = [int(data) for data in callback.data.split(':')[1:]]
-    await UserState.send_code.set()
-    state = Dispatcher.get_current().current_state()
-    await state.update_data(order_id=order_id)
-    await callback.bot.send_message(chat_id=client_id, text=RU_LEXICON['get_code'])
+    raw_date = await db.get_order_date(order_id)
+    await db.update_status(order_id, 'send_code')
+    date = date_formatting(raw_date)
+    await callback.bot.send_message(chat_id=client_id, text=RU_LEXICON['get_code'].format(date))
     await callback.message.edit_reply_markup()
     await callback.answer(RU_LEXICON['notification_was_sended'])
 
+async def send_code_process(callback: CallbackQuery, state: FSMContext):
+    order_id = callback.data.split(':')[1]
+    await UserState.send_code.set()
+    await state.update_data(order_id=order_id)
+    await callback.message.edit_text(text=RU_LEXICON['send_code'], reply_markup=cancel_edit_order(order_id))
+
 async def check_code_process(message: Message, db: Database, state: FSMContext):
     code = check_valid_code(message.text)
+    data = await state.get_data()
+    order_id = int(data['order_id'])
     if not code:
-        await message.answer(RU_LEXICON['invalid_code'])
+        await message.answer(RU_LEXICON['invalid_code'], reply_markup=cancel_edit_order(order_id))
     else:
-        data = await state.get_data()
-        order_id = data['order_id']
         await message.answer(RU_LEXICON['valid_code'])
         await state.finish()
         await db.update_order_code(order_id, code)
         client_username, mail, good, price = await db.get_order_notification(order_id)
-        await message.bot.send_message(chat_id=ENV("ADMIN_ID"), text=RU_LEXICON['send_code_push'].format(order_id, '@' + client_username if not client_username.isdigit() else client_username, mail, code, good, price), reply_markup=success_donate_button(order_id))
+        await message.bot.send_message(chat_id=ENV("ADMIN_ID"), text=RU_LEXICON['send_code_push'].format(order_id, '@' + client_username if not client_username.isdigit() else client_username, mail, code, good, price), reply_markup=success_donate_keyboard(order_id))
         await state.finish()
-
-async def success_donate_button(callback: CallbackQuery):
-    pass
 
 async def cancel_order_button(callback: CallbackQuery, db: Database, state: FSMContext):
     await state.finish()
@@ -264,6 +274,26 @@ async def check_payed_button(callback: CallbackQuery, yoomoney_token: str, db: D
     else:
         await callback.answer(text='Платеж не найден!', show_alert=True)
 
+async def invalid_code_button(callback: CallbackQuery, db: Database, state: FSMContext):
+    if state:
+        await state.finish()
+    order_id = int(callback.data.split(':')[1])
+    client_id, raw_date = await db.update_status(order_id, 'false_code')
+    date = date_formatting(raw_date)
+    await callback.bot.send_message(chat_id=client_id, text=RU_LEXICON['send_invalid_code'].format(date))
+    await callback.message.edit_text(text=callback.message.text + RU_LEXICON['invalid_code_admin'], reply_markup=None)
+    await callback.answer(text=RU_LEXICON['notification_was_sended'])
+
+async def success_donate_button(callback: CallbackQuery, db: Database, state: FSMContext):
+    if state:
+        await state.finish()
+    order_id = int(callback.data.split(':')[1])
+    client_id, raw_date = await db.update_status(order_id, 'success')
+    date = date_formatting(raw_date)
+    await callback.bot.send_message(chat_id=client_id, text=RU_LEXICON['success_order'].format(date))
+    await callback.message.edit_text(text=callback.message.text + RU_LEXICON['success_order_admin'], reply_markup=None)
+    await callback.answer(text=RU_LEXICON['notification_was_sended'])
+
 def register_user_handlers(dp: Dispatcher):
     dp.register_message_handler(start_command, commands='start')
     dp.register_message_handler(start_command, commands='start', state=UserState.pagination)
@@ -283,7 +313,8 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(buy_good_button, text_startswith='good')
     dp.register_message_handler(send_mail_process, state=UserState.send_mail)
     dp.register_callback_query_handler(cancel_order_button, text='cancel_order', state='*')
-    dp.register_callback_query_handler(send_code_process, text_startswith='get_code')
+    dp.register_callback_query_handler(send_code_button, text_startswith='get_code')
+    dp.register_callback_query_handler(send_code_process, text_startswith='send_code', state=UserState.pagination)
     dp.register_message_handler(check_code_process, state=UserState.send_code)
     dp.register_callback_query_handler(order_button, text_startswith='order_details', state='*')
     dp.register_callback_query_handler(change_mail_button, text_startswith='change_mail', state=UserState.pagination)
@@ -292,3 +323,5 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_message_handler(change_code_process, state=UserState.edit_code)
     dp.register_callback_query_handler(process_backward_button, text='pagination_backward', state=UserState.pagination)
     dp.register_callback_query_handler(process_forward_button, text='pagination_forward', state=UserState.pagination)
+    dp.register_callback_query_handler(invalid_code_button, text_startswith='invalid_code', state='*')
+    dp.register_callback_query_handler(success_donate_button, text_startswith='success_donate', state='*')

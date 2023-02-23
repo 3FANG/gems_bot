@@ -1,4 +1,5 @@
 import os
+import datetime
 
 import asyncpg
 from asyncpg import Connection, Record
@@ -59,8 +60,9 @@ class Database:
     GET_ORDERS = "SELECT registed, title, price, mail, code, status, Orders.id FROM Orders JOIN Goods ON Goods.id = Orders.good_id WHERE user_id = $1"
     GET_ORDER = "SELECT registed, title, price, mail, code, status FROM Orders JOIN Goods ON Goods.id = Orders.good_id WHERE Orders.id = $1"
     UPDATE_MAIL = "UPDATE Orders SET mail = $2 WHERE id = $1"
-    UPDATE_CODE = "UPDATE Orders SET code = $2 WHERE id = $1"
-
+    UPDATE_CODE = "UPDATE Orders SET code = $2, status = 'change_code' WHERE id = $1"
+    GET_ORDER_DATE = "SELECT registed FROM Orders WHERE id = $1"
+    UPDATE_STATUS = "UPDATE Orders SET status = $2 WHERE id = $1 RETURNING user_id, registed"
 
     def __init__(self, connection):
         self.connection: Connection = connection
@@ -197,3 +199,11 @@ class Database:
         await self.connection.fetchval(update_command, order_id, code)
         return_command = self.GET_ORDER
         return await self.connection.fetchrow(return_command, order_id)
+
+    async def get_order_date(self, order_id: int) -> datetime.datetime:
+        command = self.GET_ORDER_DATE
+        return await self.connection.fetchval(command, order_id)
+
+    async def update_status(self, order_id: int, status: str) -> Record:
+        command = self.UPDATE_STATUS
+        return await self.connection.fetchrow(command, order_id, status)

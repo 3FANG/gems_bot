@@ -34,7 +34,7 @@ def get_link(user_id: str | int, botinfo: User) -> str:
 
 def check_valid_input(amount: int | str) -> bool:
     try:
-        
+
         return int(amount)
     except ValueError:
         return False
@@ -70,9 +70,15 @@ def get_pages_amount(orders_count: int) -> int:
 
 def status_formatting(raw_status: str) -> str:
     if raw_status == 'wait':
-        status = "🕒📨 Ожидает ввода почты администратором"
+        status = "📮 Ожидает ввода почты администратором"
+    elif raw_status == 'send_code':
+        status = "📨 Ожидает код подтверждения"
     elif raw_status == 'check':
         status = "🔑 Вход в аккаунт"
+    elif raw_status == 'false_code':
+        status = "❗️ Неверный код"
+    elif raw_status == 'change_code':
+        status = "🔄 Изменение кода"
     else:
         status = "✅ Выполнен"
     return status

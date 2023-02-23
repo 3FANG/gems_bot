@@ -16,7 +16,7 @@ from .inline import (
     invoice_buttons,
     cancel_buy_good_button,
     get_code_button,
-    success_donate_button,
+    success_donate_keyboard,
     pagination_orders_keyboard,
     order_details_keyboard,
     cancel_edit_order

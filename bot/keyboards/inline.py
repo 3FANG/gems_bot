@@ -166,8 +166,8 @@ def get_code_button(order_id: int|str, user_id: str|int) -> InlineKeyboardMarkup
     keyboard.add(*buttons)
     return keyboard
 
-def success_donate_button(order_id: int|str) -> InlineKeyboardMarkup:
-    keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup()
+def success_donate_keyboard(order_id: int|str) -> InlineKeyboardMarkup:
+    keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(row_width=1)
     buttons = [
         InlineKeyboardButton(text='⚠️ Неверный код', callback_data=f"invalid_code:{order_id}"),
         InlineKeyboardButton(text='✅ Донат прошел успешно', callback_data=f"success_donate:{order_id}")
@@ -183,6 +183,12 @@ def pagination_orders_keyboard(orders: list[dict], page: int, pages_count: int) 
             status = '🕓'
         elif order['status'] == 'check':
             status = '🔑'
+        elif order['status'] == 'send_code':
+            status = '✉️'
+        elif order['status'] == 'false_code':
+            status = '❗️'
+        elif order['status'] == 'change_code':
+            status = '🔄'
         else:
             status = '✅'
         text = f"{status} | {order['title']} | {order['price']}₽"
@@ -203,9 +209,18 @@ def order_details_keyboard(order_id: int|str, page: int|str, raw_status: str) ->
     keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(row_width=1)
     buttons = [
         InlineKeyboardButton(text='✏️ Изменить почту', callback_data=f"change_mail:{order_id}"),
-        InlineKeyboardButton(text='✏️ Изменить код', callback_data=f"change_code:{order_id}"),
         InlineKeyboardButton(text='◀ Назад', callback_data=f"my_orders:{page}")
     ]
+    if raw_status == 'send_code':
+        buttons.insert(
+            1,
+            InlineKeyboardButton(text='📤 Отправить код', callback_data=f"send_code:{order_id}")
+        )
+    elif raw_status == 'false_code':
+        buttons.insert(
+            1,
+        InlineKeyboardButton(text='✏️ Изменить код', callback_data=f"change_code:{order_id}")
+        )
     buttons = buttons if raw_status != 'success' else [buttons[-1]]
     keyboard.add(*buttons)
     return keyboard
