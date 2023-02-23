@@ -36,6 +36,7 @@ class Database:
     """Db abstraction layer"""
     ADD_NEW_USER = "INSERT INTO Users(id, username, first_name, last_name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING id"
     ADD_NEW_USER_REFERRAL = "INSERT INTO Users(id, username, first_name, last_name, referral) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id"
+    ADD_NEW_USER_REFERRAL_OWN_LINK = "INSERT INTO Users(id, username, first_name, last_name, referral) VALUES ($1, $2, $3, $4, (SELECT id FROM Users WHERE ref_link = $5)) ON CONFLICT DO NOTHING RETURNING id"
     ADD_NEW_GOOD = "INSERT INTO Goods(title, price, game_id) VALUES ($1, $2, (SELECT id FROM Games WHERE name = $3))"
     ADD_MONEY = "UPDATE Users SET balance=balance+$1 WHERE id = $2"
     CHECK_BALANCE = "SELECT balance FROM Users WHERE id = $1"
@@ -63,11 +64,14 @@ class Database:
     UPDATE_CODE = "UPDATE Orders SET code = $2, status = 'change_code' WHERE id = $1"
     GET_ORDER_DATE = "SELECT registed FROM Orders WHERE id = $1"
     UPDATE_STATUS = "UPDATE Orders SET status = $2 WHERE id = $1 RETURNING user_id, registed"
+    CHECK_LINK_EXISTS = "SELECT EXISTS(SELECT ref_link FROM Users WHERE ref_link = $1)"
+    UPDATE_REFLINK = "UPDATE Users SET ref_link = $2 WHERE id = $1"
+    GET_LINK = "SELECT CASE WHEN ref_link is not null THEN ref_link ELSE id::VARCHAR(30) END FROM Users WHERE id = $1"
 
     def __init__(self, connection):
         self.connection: Connection = connection
 
-    async def add_new_user(self, referral: int=None):
+    async def add_new_user(self, referral: int|str=None):
         user = User.get_current()
         chat_id = user.id
         username = user.username
@@ -75,8 +79,12 @@ class Database:
         last_name = user.last_name
         args = chat_id, username, first_name, last_name
         if referral:
-            args += (int(referral),)
-            command = self.ADD_NEW_USER_REFERRAL
+            if referral.isdigit():
+                args += (int(referral),)
+                command = self.ADD_NEW_USER_REFERRAL
+            else:
+                args += (referral.split('_')[1],)
+                command = self.ADD_NEW_USER_REFERRAL_OWN_LINK
         else:
             command = self.ADD_NEW_USER
         record_id = await self.connection.fetchval(command, *args)
@@ -207,3 +215,17 @@ class Database:
     async def update_status(self, order_id: int, status: str) -> Record:
         command = self.UPDATE_STATUS
         return await self.connection.fetchrow(command, order_id, status)
+
+    async def check_ref_link(self, link: str) -> bool:
+        command = self.CHECK_LINK_EXISTS
+        return await self.connection.fetchval(command, link)
+
+    async def update_reflink(self, link):
+        command = self.UPDATE_REFLINK
+        user_id = User.get_current().id
+        return await self.connection.fetchval(command, user_id, link)
+
+    async def get_ref_link(self):
+        user_id = User.get_current().id
+        command = self.GET_LINK
+        return await self.connection.fetchval(command, user_id)

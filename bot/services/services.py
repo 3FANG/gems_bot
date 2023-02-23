@@ -27,10 +27,18 @@ def get_promos_description(promos: list[dict] | None) -> str:
             count += 1
     return text
 
-def get_link(user_id: str | int, botinfo: User) -> str:
+def get_link(user_id: str|int, botinfo: User) -> str:
     url = 'https://t.me/'
-    link = f"{url}{botinfo.username}?start={user_id}"
+    link = f"{url}{botinfo.username}?start={user_id if user_id.isdigit() else 'ref_' + user_id}"
     return link
+
+def check_valid_link(link: str) -> bool:
+    invalid_symbols = " !@#$%^&?*()+=~`\\/.<>,|[]\{\}"
+    if len(link) > 30:
+        return False
+    if any(map(lambda x: x in invalid_symbols, link)):
+        return False
+    return True
 
 def check_valid_input(amount: int | str) -> bool:
     try:

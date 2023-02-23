@@ -4,10 +4,10 @@ from aiogram import Dispatcher
 from aiogram.types import Message, CallbackQuery
 from aiogram.dispatcher import FSMContext
 
-from bot.keyboards import main_keyboard, free_gems_keyboard, another_games_keyboard, promo_back_button, goods_keyboard, edit_referral_keyboard, top_up_balance, cancel_top_up_balance, invoice_buttons, cancel_buy_good_button, get_code_button, success_donate_keyboard, pagination_orders_keyboard, order_details_keyboard, cancel_edit_order
+from bot.keyboards import main_keyboard, free_gems_keyboard, another_games_keyboard, promo_back_button, goods_keyboard, edit_referral_keyboard, top_up_balance, cancel_top_up_balance, invoice_buttons, cancel_buy_good_button, get_code_button, success_donate_keyboard, pagination_orders_keyboard, order_details_keyboard, cancel_edit_order, cancel_edit_link
 from bot.lexicon import RU_LEXICON
 from bot.database import Database
-from bot.services import get_link, check_valid_input, get_input_photo, check_valid_mail, date_formatting, check_valid_code, get_pages_amount, status_formatting
+from bot.services import get_link, check_valid_input, get_input_photo, check_valid_mail, date_formatting, check_valid_code, get_pages_amount, status_formatting, check_valid_link
 from bot.payments import create_invoice, check_invoice
 from bot.states import UserState
 from bot.config import load_environment
@@ -18,7 +18,7 @@ async def start_command(message: Message, db: Database, state: FSMContext):
     if state:
         await state.finish()
     referral = message.get_args()
-    await db.add_new_user(referral=int(referral) if referral else None)
+    await db.add_new_user(referral)
     photo = await db.get_photo()
     if not photo:
         await message.answer(text=RU_LEXICON['no_photo'])
@@ -233,13 +233,39 @@ async def cancel_order_button(callback: CallbackQuery, db: Database, state: FSMC
     await callback.answer(RU_LEXICON['cancel_order'])
     await start_callback(callback, db, state=None)
 
-async def referral_program_button(callback: CallbackQuery, db: Database):
+async def referral_program_button(callback: CallbackQuery, db: Database, state: FSMContext):
+    if state:
+        await state.finish()
     user_id = callback.message.from_user.id
     botinfo = await callback.bot.get_me()
-    link = get_link(user_id, botinfo)
+    ref = await db.get_ref_link()
+    link = get_link(ref, botinfo)
     count_referrals = await db.check_referrals(user_id)
     await callback.message.edit_text(text=RU_LEXICON['referral_link'].format(link, count_referrals), reply_markup=edit_referral_keyboard())  #исправить
     await callback.answer()
+
+async def edit_ref_link(callback: CallbackQuery):
+    botinfo = await callback.bot.get_me()
+    await UserState.edit_link.set()
+    await callback.message.edit_text(text=RU_LEXICON['edit_link'].format(botinfo.username), reply_markup=cancel_edit_link())
+
+async def check_link_process(message: Message, db: Database, state: FSMContext):
+    # print(repr(message.text), type(message.text))
+    # print('+++++++++++++++++++')
+    if not check_valid_link(message.text):
+        await message.answer(text=RU_LEXICON['invalid_link'], reply_markup=cancel_edit_link())
+        return
+    is_exists = await db.check_ref_link(message.text)
+    if is_exists:
+        await message.answer(text=RU_LEXICON['link_exists'], reply_markup=cancel_edit_link())
+        return
+    else:
+        botinfo = await message.bot.get_me()
+        link = get_link(message.text, botinfo)
+        await db.update_reflink(message.text)
+        await state.finish()
+        await message.answer(text=RU_LEXICON['success_link_edit'].format(link), reply_markup=cancel_edit_link(back=True))
+
 
 async def balance_button(callback: CallbackQuery, db: Database, state: FSMContext):
     await state.finish()
@@ -305,7 +331,7 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(my_orders_button, text_startswith='my_orders', state=UserState.pagination)
     dp.register_callback_query_handler(another_games_buttons, text='another_games')
     dp.register_callback_query_handler(game_button, text_startswith='pay_game')
-    dp.register_callback_query_handler(referral_program_button, text='referal_program')
+    dp.register_callback_query_handler(referral_program_button, text='referral_program', state='*')
     dp.register_callback_query_handler(balance_button, text='balance', state='*')
     dp.register_callback_query_handler(top_up_balance_button, text='top_up_balance')
     dp.register_message_handler(create_invoice_process, state=UserState.add_money)
@@ -325,3 +351,5 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(process_forward_button, text='pagination_forward', state=UserState.pagination)
     dp.register_callback_query_handler(invalid_code_button, text_startswith='invalid_code', state='*')
     dp.register_callback_query_handler(success_donate_button, text_startswith='success_donate', state='*')
+    dp.register_callback_query_handler(edit_ref_link, text='edit_link')
+    dp.register_message_handler(check_link_process, state=UserState.edit_link)

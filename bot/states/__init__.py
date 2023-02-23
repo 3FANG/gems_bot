@@ -11,3 +11,4 @@ class UserState(StatesGroup):
     pagination = State()
     edit_mail = State()
     edit_code = State()
+    edit_link = State()

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS Users(
     last_name TEXT,
     registed timestamptz DEFAULT now(),
     referral BIGINT REFERENCES Users(id),
+    ref_link VARCHAR(30),
     balance INT DEFAULT 0
 );
 
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS Goods(
     id SERIAL PRIMARY KEY,
     title TEXT,
     price INT,
-    game_id INT REFERENCES Game(id),
+    game_id INT REFERENCES Games(id),
     available BOOLEAN DEFAULT TRUE
 );
 
