@@ -36,12 +36,9 @@ class Database:
     """Db abstraction layer"""
     ADD_NEW_USER = "INSERT INTO Users(id, username, first_name, last_name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING id"
     ADD_NEW_USER_REFERRAL = "INSERT INTO Users(id, username, first_name, last_name, referral) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id"
-<<<<<<< HEAD
     ADD_NEW_GOOD = "INSERT INTO Goods(title, price, game_id) VALUES($1, $2, (SELECT id FROM Games WHERE name = $3))"
-=======
     ADD_NEW_USER_REFERRAL_OWN_LINK = "INSERT INTO Users(id, username, first_name, last_name, referral) VALUES ($1, $2, $3, $4, (SELECT id FROM Users WHERE ref_link = $5)) ON CONFLICT DO NOTHING RETURNING id"
     ADD_NEW_GOOD = "INSERT INTO Goods(title, price, game_id) VALUES ($1, $2, (SELECT id FROM Games WHERE name = $3))"
->>>>>>> 58dffac861a8537299080b7ff803537d3c9d01bf
     ADD_MONEY = "UPDATE Users SET balance=balance+$1 WHERE id = $2"
     CHECK_BALANCE = "SELECT balance FROM Users WHERE id = $1"
     GET_GAMES = "SELECT name FROM Games"
@@ -68,15 +65,12 @@ class Database:
     UPDATE_CODE = "UPDATE Orders SET code = $2, status = 'change_code' WHERE id = $1"
     GET_ORDER_DATE = "SELECT registed FROM Orders WHERE id = $1"
     UPDATE_STATUS = "UPDATE Orders SET status = $2 WHERE id = $1 RETURNING user_id, registed"
-<<<<<<< HEAD
     INSERT_GAMES = "INSERT INTO Games(name) VALUES($1)"
     CHECK_GAMES = "SELECT EXISTS(SELECT * FROM Games)"
     CHECK_GOODS = "SELECT EXISTS(SELECT * FROM Goods)"
-=======
     CHECK_LINK_EXISTS = "SELECT EXISTS(SELECT ref_link FROM Users WHERE ref_link = $1)"
     UPDATE_REFLINK = "UPDATE Users SET ref_link = $2 WHERE id = $1"
     GET_LINK = "SELECT CASE WHEN ref_link is not null THEN ref_link ELSE id::VARCHAR(30) END FROM Users WHERE id = $1"
->>>>>>> 58dffac861a8537299080b7ff803537d3c9d01bf
 
     def __init__(self, connection):
         self.connection: Connection = connection
@@ -226,7 +220,6 @@ class Database:
         command = self.UPDATE_STATUS
         return await self.connection.fetchrow(command, order_id, status)
 
-<<<<<<< HEAD
     async def insert_games(self):
         if not await self.connection.fetchval(self.CHECK_GAMES):
             command = self.INSERT_GAMES
@@ -268,7 +261,7 @@ class Database:
             ("Золотой пропуск", 220, 3)
         ]
         await self.connection.executemany(command, values)
-=======
+
     async def check_ref_link(self, link: str) -> bool:
         command = self.CHECK_LINK_EXISTS
         return await self.connection.fetchval(command, link)
@@ -282,4 +275,3 @@ class Database:
         user_id = User.get_current().id
         command = self.GET_LINK
         return await self.connection.fetchval(command, user_id)
->>>>>>> 58dffac861a8537299080b7ff803537d3c9d01bf
