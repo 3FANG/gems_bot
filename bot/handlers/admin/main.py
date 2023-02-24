@@ -12,9 +12,17 @@ from bot.states import AdminState
 
 ENV = load_environment()
 
-async def upload_photo_command(message: Message, db: Database):
+async def upload_command(message: Message, db: Database):
+    await db.insert_games()
     is_upload = await upload_photos(db, message)
     await message.answer(RU_LEXICON['is_upload'])
+    is_insert = await db.check_goods()
+    if not is_insert:
+        message = await message.answer(RU_LEXICON['insert_goods_process'])
+        await db.insert_goods()
+        await message.edit_text(text=RU_LEXICON['insert_goods_success'])
+    else:
+        await message.answer(text=RU_LEXICON['insert_goods_success'])
 
 async def admin_panel_command(message: Message):
     await message.answer(RU_LEXICON['admin_panel'], reply_markup=admin_panel_keyboard())
@@ -93,7 +101,7 @@ async def delete_promo(callback: CallbackQuery, db: Database):
     await callback.answer(text=RU_LEXICON['success_delete_promo'])
 
 def register_admin_handlers(dp: Dispatcher):
-    dp.register_message_handler(upload_photo_command, IDFilter(ENV('ADMIN_ID')), commands='upload_photo')
+    dp.register_message_handler(upload_command, IDFilter(ENV('ADMIN_ID')), commands='upload')
     dp.register_message_handler(admin_panel_command, IDFilter(ENV('ADMIN_ID')), commands='admin')
     dp.register_callback_query_handler(admin_panel_callback, text='admin', state='*')
     dp.register_callback_query_handler(choice_game_process, text='games')

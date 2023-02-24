@@ -36,7 +36,7 @@ class Database:
     """Db abstraction layer"""
     ADD_NEW_USER = "INSERT INTO Users(id, username, first_name, last_name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING id"
     ADD_NEW_USER_REFERRAL = "INSERT INTO Users(id, username, first_name, last_name, referral) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id"
-    ADD_NEW_GOOD = "INSERT INTO Goods(title, price, game_id) VALUES ($1, $2, (SELECT id FROM Games WHERE name = $3))"
+    ADD_NEW_GOOD = "INSERT INTO Goods(title, price, game_id) VALUES($1, $2, (SELECT id FROM Games WHERE name = $3))"
     ADD_MONEY = "UPDATE Users SET balance=balance+$1 WHERE id = $2"
     CHECK_BALANCE = "SELECT balance FROM Users WHERE id = $1"
     GET_GAMES = "SELECT name FROM Games"
@@ -63,6 +63,9 @@ class Database:
     UPDATE_CODE = "UPDATE Orders SET code = $2, status = 'change_code' WHERE id = $1"
     GET_ORDER_DATE = "SELECT registed FROM Orders WHERE id = $1"
     UPDATE_STATUS = "UPDATE Orders SET status = $2 WHERE id = $1 RETURNING user_id, registed"
+    INSERT_GAMES = "INSERT INTO Games(name) VALUES($1)"
+    CHECK_GAMES = "SELECT EXISTS(SELECT * FROM Games)"
+    CHECK_GOODS = "SELECT EXISTS(SELECT * FROM Goods)"
 
     def __init__(self, connection):
         self.connection: Connection = connection
@@ -207,3 +210,45 @@ class Database:
     async def update_status(self, order_id: int, status: str) -> Record:
         command = self.UPDATE_STATUS
         return await self.connection.fetchrow(command, order_id, status)
+
+    async def insert_games(self):
+        if not await self.connection.fetchval(self.CHECK_GAMES):
+            command = self.INSERT_GAMES
+            values = [
+                ('Brawl Stars',),
+                ('Clash Royale',),
+                ('Clash of Clans',)
+            ]
+            await self.connection.executemany(command, values)
+        else:
+            return True
+
+    async def check_goods(self):
+        command = self.CHECK_GOODS
+        return await self.connection.fetchval(command)
+
+    async def insert_goods(self):
+        command = "INSERT INTO Goods(title, price, game_id) VALUES($1, $2, $3)"
+        values = [
+            ("30 гемов", 110, 1),
+            ("80 гемов", 220, 1),
+            ("170 гемов", 470, 1),
+            ("360 гемов", 870, 1),
+            ("950 гемов", 1900, 1),
+            ("2000 гемов", 4200, 1),
+            ("80 гемов", 55, 2),
+            ("500 гемов", 220, 2),
+            ("1200 гемов", 470, 2),
+            ("2500 гемов", 820, 2),
+            ("6500 гемов", 1900, 2),
+            ("14000 гемов", 4000, 2),
+            ("Pass Royale", 220, 2),
+            ("80 гемов", 55, 3),
+            ("500 гемов", 220, 3),
+            ("1200 гемов", 470, 3),
+            ("2500 гемов", 820, 3),
+            ("6500 гемов", 1900, 3),
+            ("14000 гемов", 4000, 3),
+            ("Золотой пропуск", 220, 3)
+        ]
+        await self.connection.executemany(command, values)

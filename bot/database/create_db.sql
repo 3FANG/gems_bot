@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS Goods(
     id SERIAL PRIMARY KEY,
     title TEXT,
     price INT,
-    game_id INT REFERENCES Game(id),
+    game_id INT REFERENCES Games(id),
     available BOOLEAN DEFAULT TRUE
 );
 
