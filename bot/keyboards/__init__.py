@@ -19,5 +19,6 @@ from .inline import (
     success_donate_keyboard,
     pagination_orders_keyboard,
     order_details_keyboard,
-    cancel_edit_order
+    cancel_edit_order,
+    cancel_edit_link
 )

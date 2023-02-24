@@ -16,7 +16,7 @@ def free_gems_keyboard() -> InlineKeyboardMarkup:
     keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(row_width=1)
     buttons = [
         InlineKeyboardButton(text='Промокоды', callback_data='promo'),
-        InlineKeyboardButton(text='Реферальная программа', callback_data='referal_program'),
+        InlineKeyboardButton(text='Реферальная программа', callback_data='referral_program'),
         InlineKeyboardButton(text='◀ Назад', callback_data='start_button')
     ]
     keyboard.add(*buttons)
@@ -116,12 +116,18 @@ def promo_keyboard(promos: list[dir]) -> InlineKeyboardMarkup:
     return keyboard
 
 def edit_referral_keyboard() -> InlineKeyboardMarkup:
-    keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup()
+    keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(row_width=1)
     buttons = [
-        # Добавить редактирование ссылки
+        InlineKeyboardButton(text='Редактировать ссылку', callback_data='edit_link'),
         InlineKeyboardButton(text='◀ Назад', callback_data='free_gems')
     ]
     keyboard.add(*buttons)
+    return keyboard
+
+def cancel_edit_link(back=False) -> InlineKeyboardMarkup:
+    keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text='❌ Отмена' if not back else '◀ Назад', callback_data='referral_program')
+    ]])
     return keyboard
 
 def top_up_balance() -> InlineKeyboardMarkup:
