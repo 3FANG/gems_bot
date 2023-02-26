@@ -83,7 +83,7 @@ async def add_promo_button(callback: CallbackQuery):
 
 async def add_promo_process(message: Message, db: Database, state: FSMContext):
     await state.finish()
-    name, value = message.text.split('\n')
+    name, value = message.text.split()
     '''Сделать проверку введенного промокода'''
     await db.add_promo(name, int(value))
     await message.answer(text=RU_LEXICON['success_add_promo'])

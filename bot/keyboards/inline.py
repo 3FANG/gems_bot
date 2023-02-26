@@ -231,6 +231,12 @@ def order_details_keyboard(order_id: int|str, page: int|str, raw_status: str) ->
     keyboard.add(*buttons)
     return keyboard
 
+def sending_code_button(order_id: int) -> InlineKeyboardMarkup:
+    keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text='📤 Отправить код', callback_data=f"send_code:{order_id}")
+    ]])
+    return keyboard
+
 def cancel_edit_order(order_id: int|str) -> InlineKeyboardMarkup:
     keyboard: InlineKeyboardMarkup = InlineKeyboardMarkup()
     buttons = [

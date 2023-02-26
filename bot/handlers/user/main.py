@@ -4,7 +4,7 @@ from aiogram import Dispatcher
 from aiogram.types import Message, CallbackQuery
 from aiogram.dispatcher import FSMContext
 
-from bot.keyboards import main_keyboard, free_gems_keyboard, another_games_keyboard, promo_back_button, goods_keyboard, edit_referral_keyboard, top_up_balance, cancel_top_up_balance, invoice_buttons, cancel_buy_good_button, get_code_button, success_donate_keyboard, pagination_orders_keyboard, order_details_keyboard, cancel_edit_order, cancel_edit_link
+from bot.keyboards import main_keyboard, free_gems_keyboard, another_games_keyboard, promo_back_button, goods_keyboard, edit_referral_keyboard, top_up_balance, cancel_top_up_balance, invoice_buttons, cancel_buy_good_button, get_code_button, success_donate_keyboard, pagination_orders_keyboard, order_details_keyboard, cancel_edit_order, cancel_edit_link, sending_code_button
 from bot.lexicon import RU_LEXICON
 from bot.database import Database
 from bot.services import get_link, check_valid_input, get_input_photo, check_valid_mail, date_formatting, check_valid_code, get_pages_amount, status_formatting, check_valid_link
@@ -107,7 +107,7 @@ async def order_button(callback: CallbackQuery, db: Database, state: FSMContext)
         status = status_formatting(raw_status)
         await callback.message.edit_text(text=RU_LEXICON['order_details'].format(date, title, price, mail, code, status), reply_markup=order_details_keyboard(order_id, page, raw_status))
     except KeyError:
-        await callback.answer()
+        await callback.message.delete()
 
 async def change_mail_button(callback: CallbackQuery, state: FSMContext):
     order_id = callback.data.split(':')[1]
@@ -204,12 +204,12 @@ async def send_code_button(callback: CallbackQuery, db: Database):
     raw_date = await db.get_order_date(order_id)
     await db.update_status(order_id, 'send_code')
     date = date_formatting(raw_date)
-    await callback.bot.send_message(chat_id=client_id, text=RU_LEXICON['get_code'].format(date))
+    await callback.bot.send_message(chat_id=client_id, text=RU_LEXICON['get_code'].format(date), reply_markup=sending_code_button(order_id))
     await callback.message.edit_reply_markup()
     await callback.answer(RU_LEXICON['notification_was_sended'])
 
 async def send_code_process(callback: CallbackQuery, state: FSMContext):
-    order_id = callback.data.split(':')[1]
+    order_id = int(callback.data.split(':')[1])
     await UserState.send_code.set()
     await state.update_data(order_id=order_id)
     await callback.message.edit_text(text=RU_LEXICON['send_code'], reply_markup=cancel_edit_order(order_id))
@@ -340,7 +340,7 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_message_handler(send_mail_process, state=UserState.send_mail)
     dp.register_callback_query_handler(cancel_order_button, text='cancel_order', state='*')
     dp.register_callback_query_handler(send_code_button, text_startswith='get_code')
-    dp.register_callback_query_handler(send_code_process, text_startswith='send_code', state=UserState.pagination)
+    dp.register_callback_query_handler(send_code_process, text_startswith='send_code', state='*')
     dp.register_message_handler(check_code_process, state=UserState.send_code)
     dp.register_callback_query_handler(order_button, text_startswith='order_details', state='*')
     dp.register_callback_query_handler(change_mail_button, text_startswith='change_mail', state=UserState.pagination)
